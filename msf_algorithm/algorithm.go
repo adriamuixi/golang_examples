@@ -19,7 +19,7 @@ type MockData struct {
 }
 
 func main() {
-	mocksData := createMocks(15)
+	mocksData := createMocks(25)
 	for i, v := range mocksData {
 		fmt.Printf("SCENARIO %d: \n\n%+v\n\n", i+1, v)
 		start1 := time.Now()
@@ -30,6 +30,10 @@ func main() {
 		sol2 := selectBestSellerOption2(v.Seller, v.SellerAccountId, v.Locale)
 		elapsed2 := time.Since(start2)
 		log.Printf("----- Time spend: alg 2 with scenario %d took %s ,solution sellerID %d \n", i+1, elapsed2, sol2)
+		start3 := time.Now()
+		sol3 := selectBestSellerOption3(v.Seller, v.SellerAccountId, v.Locale)
+		elapsed3 := time.Since(start3)
+		log.Printf("----- Time spend: alg 3 with scenario %d took %s ,solution sellerID %d \n", i+1, elapsed3, sol3)
 		fmt.Println("\n###########################\n\n")
 	}
 }
@@ -48,7 +52,7 @@ func createMocks(number int) []MockData {
 	var sellers [][]Seller
 
 	for i := 0; i < number; i++ {
-		randomNumberSellers := rand.Intn(35-1) + 1
+		randomNumberSellers := rand.Intn(45-1) + 1
 		var sellerSlice []Seller
 		for z := 0; z < randomNumberSellers; z++ {
 			var localesRandom []string
@@ -63,6 +67,12 @@ func createMocks(number int) []MockData {
 			}
 			sellerSlice = append(sellerSlice, seller)
 		}
+
+		rand.Seed(time.Now().UnixNano())
+		if rand.Intn(2) == 1 {
+			sellerSlice = shuffleSlice(sellerSlice)
+		}
+
 		sellers = append(sellers, sellerSlice)
 	}
 
@@ -76,6 +86,12 @@ func createMocks(number int) []MockData {
 		result = append(result, m)
 	}
 	return result
+}
+
+func shuffleSlice(sellerSlice []Seller) []Seller {
+	rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(len(sellerSlice), func(i, j int) { sellerSlice[i], sellerSlice[j] = sellerSlice[j], sellerSlice[i] })
+	return sellerSlice
 }
 
 func selectBestSellerOption1(sellers []Seller, suggestedSellerAccountId int, suggestedLocale string) int {
@@ -128,6 +144,40 @@ func selectBestSellerOption2(sellers []Seller, suggestedSellerAccountId int, sug
 		if hasSuggestedLocale(seller, suggestedLocale) {
 			return *seller.SellerAccountId // Sol 2 good locale
 		}
+	}
+	if hasFoundSuggestedSellerBis {
+		return suggestedSellerAccountId // Sol 3 good seller
+	}
+	return *sellers[0].SellerAccountId // Sol 4 first choice
+}
+
+func selectBestSellerOption3(sellers []Seller, suggestedSellerAccountId int, suggestedLocale string) int {
+	// 1 : Same seller, same language => ask other pages
+	// 2 : Same language
+	// 3 : Same seller
+	// 4 : First found
+	hasFoundSuggestedSellerBis := false
+	var sameLocation int
+	var hasSameLocation bool
+	//BAD perfomance - 2 iterations but 6 statements
+	for _, seller := range sellers {
+		hasSameLocation = false
+		if hasSuggestedLocale(seller, suggestedLocale) {
+			if hasSameLocation && sameLocation != 0 {
+				sameLocation = *seller.SellerAccountId // Sol 2 good locale
+			}
+		}
+
+		if *seller.SellerAccountId == suggestedSellerAccountId {
+			hasFoundSuggestedSellerBis = true
+			if hasSameLocation {
+				return *seller.SellerAccountId
+			}
+		}
+
+	}
+	if sameLocation != 0 {
+		return sameLocation
 	}
 	if hasFoundSuggestedSellerBis {
 		return suggestedSellerAccountId // Sol 3 good seller
